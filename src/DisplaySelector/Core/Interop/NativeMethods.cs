@@ -37,4 +37,13 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    // Working-set trimming (see MemoryTuning). GetCurrentProcess returns a pseudo-handle;
+    // passing (-1, -1) as the min/max asks Windows to trim the working set to the minimum.
+    [LibraryImport("kernel32.dll")]
+    public static partial IntPtr GetCurrentProcess();
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetProcessWorkingSetSize(IntPtr process, nint minimumWorkingSetSize, nint maximumWorkingSetSize);
 }

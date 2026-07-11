@@ -34,6 +34,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly INotificationService _notifications;
     private readonly HiddenWindow _listener;
     private readonly NotifyIcon _tray;
+    private readonly System.Windows.Forms.Timer _trimTimer;
 
     private readonly Dictionary<int, string> _hotkeyIdToProfileId = new();
 
@@ -97,10 +98,28 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
         };
 
+        // Debounced working-set trim: bursts of activity (startup, activation, dialogs) restart the
+        // countdown, so we compact once the UI settles rather than on every step. Ticks on the UI
+        // thread once the message loop is running — including the post-startup trim armed just below.
+        _trimTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+        _trimTimer.Tick += (_, _) =>
+        {
+            _trimTimer.Stop();
+            MemoryTuning.TrimWorkingSet();
+        };
+
         RegisterAllHotkeys();
         RebuildMenu();
 
         _log.Info($"Tray application started. {_document.Profiles.Count} profile(s) loaded.");
+        TrimWorkingSetSoon();
+    }
+
+    // Arms (or re-arms) the debounced post-idle working-set trim.
+    private void TrimWorkingSetSoon()
+    {
+        _trimTimer.Stop();
+        _trimTimer.Start();
     }
 
     // ---- Menu ----------------------------------------------------------------------------------
@@ -289,8 +308,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var detail = result.Messages.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, result.Messages) : string.Empty;
         ShowBalloon(heading + detail, result.Success ? ToolTipIcon.Info : ToolTipIcon.Warning);
 
-        _tray.Text = Truncate($"Display Selector — {profile.Name}", 63);
+        _tray.Text = Truncate($"Display-Selector — {profile.Name}", 63);
         RebuildMenu();
+        TrimWorkingSetSoon();
     }
 
     private void SaveCurrentAsProfile()
@@ -691,6 +711,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _log.Info("Opening audio test dialog.");
         using var dialog = new AudioTestDialog(_audioService, _log, AssignDeviceToProfile);
         dialog.ShowDialog();
+        TrimWorkingSetSoon();
     }
 
     private void RunDisplayTest()
@@ -698,6 +719,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _log.Info("Opening display test dialog.");
         using var dialog = new DisplayTestDialog(_displayService, _log);
         dialog.ShowDialog();
+        TrimWorkingSetSoon();
     }
 
     private void CopyDiagnostics()
@@ -824,7 +846,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _config.AutoStart = _autoStart.IsEnabled();
         _configStore.Save(_config);
         ShowBalloon(
-            _config.AutoStart ? "Display Selector will start with Windows." : "Display Selector will not start with Windows.",
+            _config.AutoStart ? "Display-Selector will start with Windows." : "Display-Selector will not start with Windows.",
             ToolTipIcon.Info);
     }
 
@@ -850,6 +872,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (disposing)
         {
+            _trimTimer.Dispose();
             _tray.Dispose();
             _listener.Dispose();
         }

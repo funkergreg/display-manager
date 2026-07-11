@@ -1,6 +1,6 @@
-![Display Selector](assets/display-selector-banner.png)
+![Display-Selector](assets/display-selector-banner.png)
 
-# Display Selector
+# Display-Selector
 
 A lightweight **Windows 11** system-tray utility that captures your current **display layout + audio device** as a named `Profile` and binds it to a **global hotkey** — switching displays, sound, or both with one keypress.
 
@@ -9,7 +9,7 @@ A lightweight **Windows 11** system-tray utility that captures your current **di
 
 ## Why
 
-One PC, several setups — e.g. a multi-monitor desk, a single TV for couch gaming with a soundbar, a single desk monitor with PC speakers. Switching between them in Windows-default tooling means juggling the main display, the sound device, and powering panels on/off.  ![DS](assets/display-selector-icon-16x16.png) **Display Selector** turns all of that into one keypress.
+One PC, several setups — e.g. a multi-monitor desk, a single TV for couch gaming with a soundbar, a single desk monitor with PC speakers. Switching between them in Windows-default tooling means juggling the main display, the sound device, and powering panels on/off.  ![DS](assets/display-selector-icon-16x16.png) **Display-Selector** turns all of that into one keypress.
 
 ## Features
 
@@ -28,7 +28,7 @@ Download the installer `DisplaySelectorSetup.exe` from [Releases](https://github
 > [!NOTE]
 > The app is unsigned, so Windows SmartScreen may warn: choose **More info → Run anyway**.
 
-To uninstall: **Settings ▸ Apps ▸ Installed apps ▸ Display Selector ▸ Uninstall**.
+To uninstall: **Settings ▸ Apps ▸ Installed apps ▸ Display-Selector ▸ Uninstall**.
 
 Windows-based uninstall removes the app, the *Start with Windows* entry, and **all data** under `%LOCALAPPDATA%\DisplaySelector` including `Profile`(s), config, and logs.
 
@@ -109,9 +109,9 @@ notices (see [NOTICE](NOTICE)). Bundled third-party components are listed in
 
 ### Trademarks
 
-**"Display Selector"** is the name of this project. The Apache 2.0 license covers the *code*, not the
+**"Display-Selector"** is the name of this project. The Apache 2.0 license covers the *code*, not the
 *name* — per Section 6 it grants no rights to the project name or marks. Please don't use the name
-"Display Selector" for derivative works in a way that implies endorsement or origin; give your fork a
+"Display-Selector" for derivative works in a way that implies endorsement or origin; give your fork a
 distinct name. (Crediting this project as the basis is welcome and required.)
 
 ## Credits

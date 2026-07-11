@@ -8,7 +8,7 @@ namespace DisplaySelector.Core;
 /// </summary>
 public static class AppIdentity
 {
-    public const string AppName = "Display Selector";
+    public const string AppName = "Display-Selector";
 
     /// <summary>AppUserModelID — keep in sync with installer/setup.iss and any future MSIX manifest.</summary>
     public const string AppUserModelId = "FunkerGreg.DisplaySelector";

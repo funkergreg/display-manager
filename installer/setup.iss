@@ -1,15 +1,15 @@
-; Inno Setup script for Display Selector.
+; Inno Setup script for Display-Selector.
 ; Per-user install (no admin): app under per-user Program Files, HKCU Run key removed on uninstall,
 ; and all generated data under %LOCALAPPDATA%\DisplaySelector purged.
 ;
 ; SILENT INSTALL (required for a Microsoft Store EXE submission — see docs/microsoft-store-distribution-roadmap.md):
 ;   DisplaySelectorSetup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ; SILENT UNINSTALL:
-;   "%LOCALAPPDATA%\Programs\Display Selector\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+;   "%LOCALAPPDATA%\Programs\Display-Selector\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ; (A trusted-CA code-signing certificate is also required for Store EXE submission; GitHub releases
 ;  work unsigned, with a SmartScreen prompt.)
 
-#define AppName "Display Selector"
+#define AppName "Display-Selector"
 ; The version is single-sourced from the app .csproj <Version> and passed by build.ps1 via
 ; /DAppVersion=. This #define is only the fallback for a direct `iscc setup.iss` compile; keep it
 ; in sync with the .csproj if you compile the installer without the build script.

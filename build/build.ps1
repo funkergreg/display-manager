@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Build, test, publish, and package the Display Selector installer.
+    Build, test, publish, and package the Display-Selector installer.
 .DESCRIPTION
     Pipeline: unit tests -> publish (self-contained single-file win-x64) -> Inno Setup compile.
 .PARAMETER IncludeIntegration

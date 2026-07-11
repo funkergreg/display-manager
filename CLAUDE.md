@@ -1,4 +1,4 @@
-# CLAUDE.md — Display Selector
+# CLAUDE.md — Display-Selector
 
 Guidance for agentic coding on this repo. Keep this file current as the source of truth for *how to work here*; it must stay self-sufficient (DESIGN.md is a disposable working doc and will be deleted — do not depend on it long-term; a README.md will become the user-facing doc near feature-complete).
 

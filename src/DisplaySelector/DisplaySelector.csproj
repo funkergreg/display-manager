@@ -19,6 +19,12 @@
     <Copyright>Copyright 2026 FunkerGreg — Apache License 2.0</Copyright>
     <!-- Required by source-generated LibraryImport P/Invoke marshalling. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Memory: this app is mostly idle and low-allocation. Workstation GC without the background-GC
+         thread keeps the resident footprint smaller than the (multi-heap, VM-reserving) server GC. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- We never localize; skipping ICU avoids mapping several MB of globalization data at startup. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

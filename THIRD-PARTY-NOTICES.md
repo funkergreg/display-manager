@@ -1,6 +1,6 @@
 # Third-party notices
 
-Display Selector redistributes the following third-party components. Each is used under its own
+Display-Selector redistributes the following third-party components. Each is used under its own
 license, reproduced/linked below.
 
 ---

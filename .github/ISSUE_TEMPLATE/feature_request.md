@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Display Selector
+about: Suggest an idea for Display-Selector
 title: "[FEATURE] "
 labels: enhancement
 assignees: funkergreg

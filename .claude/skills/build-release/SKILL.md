@@ -1,13 +1,14 @@
 ---
 name: build-release
-description: Build and package a release installer for Display Selector. Use when asked to build a release, produce/compile the installer, package the app, or make release binaries. Runs unit tests, publishes a self-contained single-file exe, and compiles the Inno Setup installer.
+description: Build and package a release installer for Display-Selector. Use when asked to build a release, produce/compile the installer, package the app, or make release binaries. Runs unit tests, publishes a self-contained single-file exe, and compiles the Inno Setup installer.
 ---
 
 # build-release
 
-Produce a release build + installer for Display Selector. Prefer the `build/build.ps1` script (it encapsulates the canonical pipeline); fall back to manual steps only if the script is missing.
+Produce a release build + installer for Display-Selector. Prefer the `build/build.ps1` script (it encapsulates the canonical pipeline); fall back to manual steps only if the script is missing.
 
 ## Steps
+
 1. **Confirm prerequisites** (only if a step later fails — don't pre-check noisily):
    - .NET 10 SDK: `dotnet --version`
    - Inno Setup compiler `iscc.exe` on PATH (or at the usual `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`).
@@ -28,11 +29,12 @@ Produce a release build + installer for Display Selector. Prefer the `build/buil
    - **Create the release** with the GitHub CLI, attaching the freshly-built installer:
      ```pwsh
      $v = ([xml](Get-Content src/DisplaySelector/DisplaySelector.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-     gh release create "v$v" "installer/Output/DisplaySelectorSetup.exe" --title "Display Selector v$v" --notes "..."
+     gh release create "v$v" "installer/Output/DisplaySelectorSetup.exe" --title "Display-Selector v$v" --notes "..."
      ```
    - **Don't clobber:** if a release/tag for that version already exists, stop and report — do not overwrite or force. Bump the version (`.csproj`) and rebuild instead.
    - **Report** the release URL `gh` prints.
 
 ## Notes
+
 - Pushing is allowed **only** for the step-5 release publish above (tag + `gh release`). Never `git commit`, and never push source branches — the developer handles those as a QC step.
 - This skill does **not** cover tier-3 physical verification (sound/display actually changing) — that is human-in-the-loop via the app's Diagnostics menu.
