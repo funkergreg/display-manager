@@ -1,11 +1,11 @@
-![Display-Selector](assets/display-selector-banner.png)
-
 # Display-Selector
 
 A lightweight **Windows 11** system-tray utility that captures your current **display layout + audio device** as a named `Profile` and binds it to a **global hotkey** — switching displays, sound, or both with one keypress.
 
 > [!TIP]
 > Yes, **sound** can be switched independently of any **display** `Profile`!
+
+![Display-Selector](assets/display-selector-banner.png)
 
 ## Why
 
@@ -102,17 +102,12 @@ The only outbound actions are ones you start yourself:
 
 ## License
 
-Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE). You may use, modify, and
-redistribute it, including in derivative works, provided you retain the copyright and attribution
-notices (see [NOTICE](NOTICE)). Bundled third-party components are listed in
+Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE). You may use, modify, and redistribute it, including in derivative works, provided you retain the copyright and attribution notices (see [NOTICE](NOTICE)). Bundled third-party components are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ### Trademarks
 
-**"Display-Selector"** is the name of this project. The Apache 2.0 license covers the *code*, not the
-*name* — per Section 6 it grants no rights to the project name or marks. Please don't use the name
-"Display-Selector" for derivative works in a way that implies endorsement or origin; give your fork a
-distinct name. (Crediting this project as the basis is welcome and required.)
+**"Display-Selector"** is the name of this project. The Apache 2.0 license covers the *code*, not the *name* — per Section 6 it grants no rights to the project name or marks. Please don't use the name "Display-Selector", with or without the dash, for derivative works in a way that implies endorsement or origin; give your fork a distinct name. (Crediting this project as the basis is welcome and required.)
 
 ## Credits
 
