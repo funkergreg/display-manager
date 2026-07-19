@@ -33,9 +33,6 @@ public sealed class ToastNotificationService : INotificationService
             message,
             level);
 
-    public void ShowWithLink(string message, string linkLabel, string url, NotificationLevel level = NotificationLevel.Info) =>
-        ShowWithLinks(message, new[] { (linkLabel, url) }, level);
-
     public void ShowWithLinks(string message, IReadOnlyList<(string Label, string Url)> links, NotificationLevel level = NotificationLevel.Info) =>
         TryToastOrFallback(
             // Distinct tag so it isn't replaced by routine status toasts before it can be clicked.

@@ -72,7 +72,7 @@ internal sealed class AudioTestDialog : Form
         _list.Items.Clear();
         foreach (var e in _endpoints)
         {
-            _list.Items.Add(e.IsDefault ? $"{e.FriendlyName}  (default)" : e.FriendlyName);
+            _list.Items.Add(e.DisplayLabel);
         }
 
         if (_list.Items.Count > 0)

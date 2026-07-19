@@ -12,9 +12,6 @@ public interface INotificationService
 {
     void Show(string message, NotificationLevel level = NotificationLevel.Info);
 
-    /// <summary>Show a notification with a button that opens <paramref name="url"/> (falls back to text + URL).</summary>
-    void ShowWithLink(string message, string linkLabel, string url, NotificationLevel level = NotificationLevel.Info);
-
     /// <summary>Show a notification with one button per link, each opening its URL (falls back to text + URLs).</summary>
     void ShowWithLinks(string message, IReadOnlyList<(string Label, string Url)> links, NotificationLevel level = NotificationLevel.Info);
 }

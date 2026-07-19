@@ -1,6 +1,6 @@
 ---
 name: build-release
-description: Build and package a release installer for Display-Selector. Use when asked to build a release, produce/compile the installer, package the app, or make release binaries. Runs unit tests, publishes a self-contained single-file exe, and compiles the Inno Setup installer.
+description: Build and package a release installer for Display-Selector. Use when asked to build a release, produce/compile the installer, package the app, or make release binaries. Runs unit tests, publishes a self-contained (loose-files) app, and compiles the Inno Setup installer.
 ---
 
 # build-release
@@ -14,11 +14,11 @@ Produce a release build + installer for Display-Selector. Prefer the `build/buil
    - Inno Setup compiler `iscc.exe` on PATH (or at the usual `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`).
 2. **Run the pipeline:**
    - Preferred: `powershell -ExecutionPolicy Bypass -File build/build.ps1` (or `pwsh build/build.ps1` if PowerShell 7 is installed)
-   - The script runs, in order: unit tests (`Category!=Integration`) → `dotnet publish -c Release -r win-x64 --self-contained` (single-file) → `iscc installer/setup.iss`.
+   - The script runs, in order: unit tests (`Category!=Integration`) → `dotnet publish -c Release -r win-x64 --self-contained` (loose files, `-p:PublishSingleFile=false`) → `iscc installer/setup.iss`.
    - Useful flags: `-SkipTests` (fast package), `-IncludeIntegration` (also run tier-2 tests — requires a desktop session).
 3. **If `build/build.ps1` does not exist yet** (early in M0), do it manually:
    - `dotnet test --filter "Category!=Integration"`
-   - `dotnet publish src/DisplaySelector -c Release -r win-x64 --self-contained -p:PublishSingleFile=true`
+   - `dotnet publish src/DisplaySelector -c Release -r win-x64 --self-contained -p:PublishSingleFile=false`
    - `& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss`
 4. **Report** the final installer path (e.g. `installer/Output/DisplaySelectorSetup.exe`) and a one-line summary (tests passed? publish size? installer produced?). If any step failed, surface the actual error output — do not claim success.
 

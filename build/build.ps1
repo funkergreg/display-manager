@@ -3,7 +3,7 @@
 .SYNOPSIS
     Build, test, publish, and package the Display-Selector installer.
 .DESCRIPTION
-    Pipeline: unit tests -> publish (self-contained single-file win-x64) -> Inno Setup compile.
+    Pipeline: unit tests -> publish (self-contained, loose files, win-x64) -> Inno Setup compile.
 .PARAMETER IncludeIntegration
     Also run the Category=Integration tests (real Windows APIs; needs a desktop session).
 .PARAMETER SkipTests
@@ -67,9 +67,12 @@ function Invoke-Step {
 # Locate signtool: prefer the newest Windows SDK bin, then fall back to PATH.
 function Get-SignTool {
     $roots = @(${env:ProgramFiles(x86)}, $env:ProgramFiles) | Where-Object { $_ }
+    # Sort by the SDK version dir (the '*' between bin and x64) numerically, not lexically — a string
+    # sort misorders build-number segments of differing lengths and could pick an older signtool.
     $tool = $roots |
         ForEach-Object { Get-ChildItem -Path (Join-Path $_ 'Windows Kits\10\bin\*\x64\signtool.exe') -ErrorAction SilentlyContinue } |
-        Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+        Sort-Object { try { [version]$_.Directory.Parent.Name } catch { [version]'0.0' } } -Descending |
+        Select-Object -First 1 -ExpandProperty FullName
     if (-not $tool) {
         $cmd = Get-Command signtool -ErrorAction SilentlyContinue
         if ($cmd) { $tool = $cmd.Source }
@@ -136,9 +139,12 @@ if (Test-Path $publishDir) {
 }
 
 Invoke-Step 'Publish' {
+    # Loose files (NOT single-file): a compressed single-file bundle gets extracted/memory-mapped at
+    # runtime, which inflates and churns the Working Set. Publishing loose keeps the footprint lower
+    # and steadier. Still fully self-contained (bundled runtime) — no prerequisite on the user's PC.
+    # The installer's [Files] glob (publish\*) already ships whatever this produces.
     dotnet publish $app -c Release -r win-x64 --self-contained `
-        -p:PublishSingleFile=true `
-        -p:EnableCompressionInSingleFile=true `
+        -p:PublishSingleFile=false `
         -o $publishDir
 }
 

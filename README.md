@@ -81,7 +81,7 @@ dotnet test --filter "Category=Integration"             # integration tests (rea
 powershell -ExecutionPolicy Bypass -File build/build.ps1  # test + publish + compile installer
 ```
 
-The published app is a self-contained single-file `win-x64` executable — end users need no .NET runtime.
+The published app is a self-contained `win-x64` build (bundled runtime, loose files) — end users need no .NET runtime.
 
 ## Data & privacy
 

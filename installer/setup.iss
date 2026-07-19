@@ -49,7 +49,7 @@ AppMutex=Local\DisplaySelector.SingleInstance
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-; Expects build.ps1 to have published to ..\publish (self-contained single-file). Exclude debug symbols.
+; Expects build.ps1 to have published to ..\publish (self-contained, loose files). Exclude debug symbols.
 Source: "..\publish\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\NOTICE"; DestDir: "{app}"; Flags: ignoreversion

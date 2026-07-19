@@ -105,19 +105,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trimTimer.Tick += (_, _) =>
         {
             _trimTimer.Stop();
-            // Debug-only before/after pair: reveals whether the trim is reclaiming a real drop or
-            // just churning the working set (pages faulting straight back in). Snapshot() is cheap
-            // but skip it entirely unless Debug logging is on.
-            if (_log.Level == LogLevel.Debug)
-            {
-                _log.Debug($"Memory before trim: {MemoryTuning.Snapshot()}");
-                MemoryTuning.TrimWorkingSet();
-                _log.Debug($"Memory after trim:  {MemoryTuning.Snapshot()}");
-            }
-            else
-            {
-                MemoryTuning.TrimWorkingSet();
-            }
+            MemoryTuning.TrimWorkingSet();
         };
 
         RegisterAllHotkeys();
@@ -224,8 +212,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return manage;
         }
 
-        foreach (var profile in _document.Profiles)
+        // Index-based loop so "Move up/down" enablement is O(1) per item instead of an O(n) IndexOf.
+        for (var index = 0; index < _document.Profiles.Count; index++)
         {
+            var profile = _document.Profiles[index];
             var id = profile.Id;
             var sub = new ToolStripMenuItem(profile.Name);
 
@@ -243,7 +233,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
             sub.DropDownItems.Add(new ToolStripSeparator());
 
-            var index = _document.Profiles.IndexOf(profile);
             var moveUp = new ToolStripMenuItem("Move up") { Enabled = index > 0 };
             moveUp.Click += (_, _) => MoveProfile(id, -1);
             sub.DropDownItems.Add(moveUp);
@@ -283,10 +272,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         openLogs.Click += (_, _) => OpenLogFolder();
         diagnostics.DropDownItems.Add(openLogs);
 
-        var memorySnapshot = new ToolStripMenuItem("Log memory snapshot");
-        memorySnapshot.Click += (_, _) => LogMemorySnapshot();
-        diagnostics.DropDownItems.Add(memorySnapshot);
-
         var debugToggle = new ToolStripMenuItem("Enable debug logging")
         {
             Checked = _config.DebugLogging,
@@ -310,9 +295,23 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     // ---- Profile operations --------------------------------------------------------------------
 
+    private Profile? FindProfile(string id) => _document.Profiles.FirstOrDefault(p => p.Id == id);
+
+    // Persist the document and refresh the tray. Re-registers global hotkeys only when the change may
+    // have affected them (a profile was added or removed); a rename/reorder/audio edit does not.
+    private void PersistAndRefresh(bool reregisterHotkeys = false)
+    {
+        _profileStore.Save(_document);
+        if (reregisterHotkeys)
+        {
+            RegisterAllHotkeys();
+        }
+        RebuildMenu();
+    }
+
     private void ActivateProfile(string id)
     {
-        var profile = _document.Profiles.FirstOrDefault(p => p.Id == id);
+        var profile = FindProfile(id);
         if (profile is null)
         {
             return;
@@ -332,31 +331,55 @@ internal sealed class TrayApplicationContext : ApplicationContext
     // Lowest-numbered "profile-N" not already in use, so the suggested name iterates automatically.
     private string NextDefaultProfileName()
     {
-        var existing = new HashSet<string>(
-            _document.Profiles.Select(p => p.Name),
-            StringComparer.OrdinalIgnoreCase);
         for (var n = 1; ; n++)
         {
             var candidate = $"profile-{n}";
-            if (!existing.Contains(candidate))
+            if (!NameInUse(candidate))
             {
                 return candidate;
             }
         }
     }
 
+    // Case-insensitive name-collision check — a profile's name is its identity in the tray/menu UI,
+    // so we keep names unique. Excludes a given id so renaming a profile to its own name is allowed.
+    private bool NameInUse(string name, string? excludeId = null) =>
+        _document.Profiles.Any(p => p.Id != excludeId &&
+            string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    // Prompts for a name, refusing and re-prompting any name already taken by another profile.
+    // Returns the accepted name, or null if the user cancelled.
+    private string? PromptForUniqueName(string title, string prompt, string defaultName, string? excludeId = null)
+    {
+        var seed = defaultName;
+        while (true)
+        {
+            var name = TextInputDialog.Prompt(title, prompt, initialValue: seed, placeholder: defaultName);
+            if (name is null)
+            {
+                return null;
+            }
+            if (!NameInUse(name, excludeId))
+            {
+                return name;
+            }
+            ShowBalloon($"A profile named '{name}' already exists — choose another name.", ToolTipIcon.Warning);
+            seed = name; // reopen with what they typed so they can tweak it rather than start over
+        }
+    }
+
+    // Confirmation prompt before saving a capture identical to an existing profile. The caller passes
+    // the description of what was actually compared (e.g. "display and audio device configuration",
+    // "display configuration", or "audio device configuration").
+    private bool ConfirmDuplicateCapture(string matchName, string configDescription) =>
+        MessageBox.Show(
+            $"This {configDescription} already matches profile '{matchName}'. Save another copy anyway?",
+            "Duplicate configuration",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Warning) == DialogResult.OK;
+
     private void SaveCurrentAsProfile()
     {
-        // Prefill the default as pre-selected text (visible + first keystroke replaces it); the
-        // placeholder keeps the default as the fallback if the box is cleared before OK.
-        var defaultName = NextDefaultProfileName();
-        var name = TextInputDialog.Prompt(
-            "Save profile", "Name for this profile:", initialValue: defaultName, placeholder: defaultName);
-        if (name is null)
-        {
-            return;
-        }
-
         DisplayConfig? display = null;
         try
         {
@@ -372,6 +395,29 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ? null
             : new AudioConfig { EndpointId = defaultDevice.Id, FriendlyName = defaultDevice.FriendlyName };
 
+        // Only dedupe when we actually captured a display — a failed capture leaves display null,
+        // which would otherwise falsely match an audio-only profile with the same default device.
+        var duplicate = display is null ? null : ProfileMatching.FindDuplicate(_document.Profiles, display, audio);
+        if (duplicate is not null && !ConfirmDuplicateCapture(
+                duplicate.Name,
+                audio is null ? "display configuration" : "display and audio device configuration"))
+        {
+            return;
+        }
+
+        var name = PromptForUniqueName("Save profile", "Name for this profile:", NextDefaultProfileName());
+        if (name is null)
+        {
+            return;
+        }
+
+        AddAndSaveProfile(name, display, audio, "profile");
+    }
+
+    // Shared tail of the two "Save current …" flows: build the profile, persist, re-register hotkeys,
+    // rebuild the menu, and notify.
+    private void AddAndSaveProfile(string name, DisplayConfig? display, AudioConfig? audio, string savedNoun)
+    {
         var profile = new Profile
         {
             Name = name,
@@ -382,12 +428,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
 
         _document.Profiles.Add(profile);
-        _profileStore.Save(_document);
-        RegisterAllHotkeys();
-        RebuildMenu();
+        PersistAndRefresh(reregisterHotkeys: true);
 
         var hotkeyNote = profile.Hotkey is null ? string.Empty : $" ({HotkeyCodec.Format(profile.Hotkey)})";
-        ShowBalloon($"Saved profile '{name}'{hotkeyNote}.", ToolTipIcon.Info);
+        _log.Info($"Saved {savedNoun} '{name}'{hotkeyNote}.");
+        ShowBalloon($"Saved {savedNoun} '{name}'{hotkeyNote}.", ToolTipIcon.Info);
     }
 
     private void SaveCurrentAudioAsProfile()
@@ -399,38 +444,31 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        var defaultName = NextDefaultProfileName();
-        var name = TextInputDialog.Prompt(
+        var audio = new AudioConfig { EndpointId = device.Id, FriendlyName = device.FriendlyName };
+
+        var duplicate = ProfileMatching.FindDuplicate(_document.Profiles, null, audio);
+        if (duplicate is not null &&
+            !ConfirmDuplicateCapture(duplicate.Name, "audio device configuration"))
+        {
+            return;
+        }
+
+        var name = PromptForUniqueName(
             "Save audio profile",
             $"Name for this audio-only profile (device: {device.FriendlyName}):",
-            initialValue: defaultName,
-            placeholder: defaultName);
+            NextDefaultProfileName());
         if (name is null)
         {
             return;
         }
 
-        var profile = new Profile
-        {
-            Name = name,
-            Display = null, // audio-only: leaves displays untouched on activation
-            Audio = new AudioConfig { EndpointId = device.Id, FriendlyName = device.FriendlyName },
-            Hotkey = PickDefaultHotkey(),
-            CreatedUtc = DateTimeOffset.UtcNow,
-        };
-
-        _document.Profiles.Add(profile);
-        _profileStore.Save(_document);
-        RegisterAllHotkeys();
-        RebuildMenu();
-
-        var hotkeyNote = profile.Hotkey is null ? string.Empty : $" ({HotkeyCodec.Format(profile.Hotkey)})";
-        ShowBalloon($"Saved audio-only profile '{name}'{hotkeyNote}.", ToolTipIcon.Info);
+        // Display null: audio-only profile leaves displays untouched on activation.
+        AddAndSaveProfile(name, display: null, audio, "audio-only profile");
     }
 
     private void SetProfileAudio(string id)
     {
-        var profile = _document.Profiles.FirstOrDefault(p => p.Id == id);
+        var profile = FindProfile(id);
         if (profile is null)
         {
             return;
@@ -448,7 +486,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             "Set audio device",
             $"Output device for '{profile.Name}':",
             devices,
-            d => d.IsDefault ? $"{d.FriendlyName}  (default)" : d.FriendlyName,
+            d => d.DisplayLabel,
             current);
         if (chosen is null)
         {
@@ -456,8 +494,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         profile.Audio = new AudioConfig { EndpointId = chosen.Id, FriendlyName = chosen.FriendlyName };
-        _profileStore.Save(_document);
-        RebuildMenu();
+        _log.Info($"Set audio device for '{profile.Name}' to '{chosen.FriendlyName}'.");
+        PersistAndRefresh();
         ShowBalloon($"Set audio for '{profile.Name}' to '{chosen.FriendlyName}'.", ToolTipIcon.Info);
     }
 
@@ -480,8 +518,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         profile.Audio = new AudioConfig { EndpointId = endpoint.Id, FriendlyName = endpoint.FriendlyName };
-        _profileStore.Save(_document);
-        RebuildMenu();
+        _log.Info($"Set '{endpoint.FriendlyName}' as audio device on profile '{profile.Name}'.");
+        PersistAndRefresh();
         ShowBalloon($"Set '{endpoint.FriendlyName}' on profile '{profile.Name}'.", ToolTipIcon.Info);
     }
 
@@ -502,19 +540,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var profile = _document.Profiles[index];
         _document.Profiles.RemoveAt(index);
         _document.Profiles.Insert(newIndex, profile);
-        _profileStore.Save(_document);
-        RebuildMenu();
+        _log.Info($"Moved profile '{profile.Name}' {(delta < 0 ? "up" : "down")}.");
+        PersistAndRefresh();
     }
 
     private void RenameProfile(string id)
     {
-        var profile = _document.Profiles.FirstOrDefault(p => p.Id == id);
+        var profile = FindProfile(id);
         if (profile is null)
         {
             return;
         }
 
-        var name = TextInputDialog.Prompt("Rename profile", "New name:", profile.Name);
+        var name = PromptForUniqueName("Rename profile", "New name:", profile.Name, excludeId: id);
         if (name is null || name == profile.Name)
         {
             return;
@@ -522,14 +560,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var oldName = profile.Name;
         profile.Name = name;
-        _profileStore.Save(_document);
-        RebuildMenu();
+        _log.Info($"Renamed profile '{oldName}' to '{name}'.");
+        PersistAndRefresh();
         ShowBalloon($"Renamed '{oldName}' to '{name}'.", ToolTipIcon.Info);
     }
 
     private void DeleteProfile(string id)
     {
-        var profile = _document.Profiles.FirstOrDefault(p => p.Id == id);
+        var profile = FindProfile(id);
         if (profile is null)
         {
             return;
@@ -546,15 +584,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         _document.Profiles.Remove(profile);
-        _profileStore.Save(_document);
-        RegisterAllHotkeys();
-        RebuildMenu();
+        _log.Info($"Deleted profile '{profile.Name}'.");
+        PersistAndRefresh(reregisterHotkeys: true);
         ShowBalloon($"Deleted profile '{profile.Name}'.", ToolTipIcon.Info);
     }
 
     private void SetHotkey(string id)
     {
-        var profile = _document.Profiles.FirstOrDefault(p => p.Id == id);
+        var profile = FindProfile(id);
         if (profile is null)
         {
             return;
@@ -580,8 +617,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             if (binding is null)
             {
                 profile.Hotkey = null;
-                _profileStore.Save(_document);
-                RebuildMenu();
+                _log.Info($"Cleared hotkey for '{profile.Name}'.");
+                PersistAndRefresh();
                 ShowBalloon($"Cleared hotkey for '{profile.Name}'.", ToolTipIcon.Info);
                 return;
             }
@@ -643,6 +680,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 MessageBoxIcon.Warning);
         }
 
+        _log.Info(balloon);
         RebuildMenu();
         ShowBalloon(balloon, ToolTipIcon.Info);
     }
@@ -708,30 +746,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var currentAudioId = _audioService.GetDefaultOutputDevice()?.Id;
         var currentDisplays = _displayService.GetCurrentDisplays();
-        var currentKeys = currentDisplays.Select(d => d.StableId).OrderBy(x => x).ToList();
-        var currentPrimary = currentDisplays.FirstOrDefault(d => d.Primary)?.StableId;
-
-        foreach (var profile in _document.Profiles)
-        {
-            if (profile.Audio is { } audio && audio.EndpointId != currentAudioId)
-            {
-                continue;
-            }
-
-            if (profile.Display is { } display)
-            {
-                var keys = display.Targets.Select(t => t.StableId).OrderBy(x => x).ToList();
-                var primary = display.Targets.FirstOrDefault(t => t.Primary)?.StableId;
-                if (!keys.SequenceEqual(currentKeys) || primary != currentPrimary)
-                {
-                    continue;
-                }
-            }
-
-            return profile.Id;
-        }
-
-        return null;
+        return ProfileMatching.FindActive(_document.Profiles, currentDisplays, currentAudioId)?.Id;
     }
 
     // ---- Diagnostics / misc --------------------------------------------------------------------
@@ -743,15 +758,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _configStore.Save(_config);
         _log.Info($"Debug logging {(enabled ? "enabled" : "disabled")}.");
         ShowBalloon($"Debug logging {(enabled ? "enabled" : "disabled")}.", ToolTipIcon.Info);
-    }
-
-    // Logs a memory snapshot at Info so it lands in the log without enabling debug — a quick way to
-    // capture the footprint at a moment of interest (e.g. right after Task Manager shows a spike).
-    private void LogMemorySnapshot()
-    {
-        var snapshot = MemoryTuning.Snapshot();
-        _log.Info($"Memory snapshot (on demand): {snapshot}");
-        ShowBalloon($"Logged memory snapshot.{Environment.NewLine}{snapshot}", ToolTipIcon.Info);
     }
 
     private void RunAudioTest()
@@ -781,15 +787,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _log.Error("Failed to copy diagnostics.", ex);
-            ShowBalloon("Couldn't copy diagnostics — see the log.", ToolTipIcon.Warning);
+            ReportFailure("copy diagnostics", ex);
         }
+    }
+
+    // Open a file, folder, or URL with the shell (default handler / browser).
+    private static void OpenExternal(string target) =>
+        Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
+
+    // Log an exception and surface a consistent "couldn't <action> — see the log" warning toast.
+    private void ReportFailure(string action, Exception ex)
+    {
+        _log.Error($"Failed to {action}.", ex);
+        ShowBalloon($"Couldn't {action} — see the log.", ToolTipIcon.Warning);
     }
 
     private void OpenLogFolder()
     {
         Directory.CreateDirectory(AppPaths.LogsDirectory);
-        Process.Start(new ProcessStartInfo { FileName = AppPaths.LogsDirectory, UseShellExecute = true });
+        OpenExternal(AppPaths.LogsDirectory);
         _log.Info("Opened log folder.");
     }
 
@@ -817,8 +833,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
 
             Directory.CreateDirectory(AppPaths.LogsDirectory);
-            Process.Start(new ProcessStartInfo { FileName = AppPaths.LogsDirectory, UseShellExecute = true });
-            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+            OpenExternal(AppPaths.LogsDirectory);
+            OpenExternal(url);
 
             _log.Info("Opened prefilled GitHub bug report; recent log copied to clipboard.");
             ShowBalloon(
@@ -827,8 +843,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _log.Error("Failed to open the bug report.", ex);
-            ShowBalloon("Couldn't open the bug report — see the log.", ToolTipIcon.Warning);
+            ReportFailure("open the bug report", ex);
         }
     }
 
@@ -836,13 +851,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         try
         {
-            Process.Start(new ProcessStartInfo { FileName = IssueReporter.FeatureRequestUrl(), UseShellExecute = true });
+            OpenExternal(IssueReporter.FeatureRequestUrl());
             _log.Info("Opened prefilled GitHub feature request.");
         }
         catch (Exception ex)
         {
-            _log.Error("Failed to open the feature request.", ex);
-            ShowBalloon("Couldn't open the feature request — see the log.", ToolTipIcon.Warning);
+            ReportFailure("open the feature request", ex);
         }
     }
 
@@ -850,6 +864,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         // AssemblyVersion is always 4-part (1.1.0.0); show the 3-part product version (1.1.0).
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+        _log.Info($"Showed About (version {version}).");
         _notifications.ShowWithLinks(
             $"Version {version} — switch display + audio profiles with a hotkey.",
             new[]
@@ -897,6 +912,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _config.AutoStart = _autoStart.IsEnabled();
         _configStore.Save(_config);
+        _log.Info($"Auto-start {(_config.AutoStart ? "enabled" : "disabled")}.");
         ShowBalloon(
             _config.AutoStart ? "Display-Selector will start with Windows." : "Display-Selector will not start with Windows.",
             ToolTipIcon.Info);

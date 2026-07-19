@@ -53,7 +53,7 @@ internal sealed class TextInputDialog : Form
         get
         {
             var text = _input.Text.Trim();
-            return text.Length > 0 ? text : _placeholder;
+            return text.Length > 0 ? text : _placeholder.Trim();
         }
     }
 

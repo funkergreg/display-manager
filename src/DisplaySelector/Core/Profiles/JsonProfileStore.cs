@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DisplaySelector.Core.Hotkeys;
 using DisplaySelector.Core.Logging;
 
 namespace DisplaySelector.Core.Profiles;
@@ -26,7 +27,7 @@ public sealed class JsonProfileStore : IProfileStore
         foreach (var p in doc.Profiles)
         {
             _log.Info(
-                $"  profile '{p.Name}' id={p.Id} hotkey={DescribeHotkey(p.Hotkey)} " +
+                $"  profile '{p.Name}' id={p.Id} hotkey={HotkeyCodec.Format(p.Hotkey)} " +
                 $"audio={p.Audio?.FriendlyName ?? "-"} displays={p.Display?.Targets.Count ?? 0}");
         }
 
@@ -79,15 +80,5 @@ public sealed class JsonProfileStore : IProfileStore
         }
 
         return (new ProfilesDocument(), "new (empty)");
-    }
-
-    private static string DescribeHotkey(HotkeyBinding? h)
-    {
-        if (h is null)
-        {
-            return "-";
-        }
-
-        return h.Modifiers.Count == 0 ? h.Key : string.Join("+", h.Modifiers) + "+" + h.Key;
     }
 }
