@@ -5,9 +5,9 @@ A lightweight **Windows 11** system-tray utility that captures your current **di
 > [!TIP]
 > Yes, **sound** can be switched independently of any **display** `Profile`!
 
-![Display-Selector](assets/display-selector-banner.png)
-
 **Website:** [display-selector.org](https://display-selector.org) — overview, screenshots, install guide, and FAQ.
+
+![Display-Selector](assets/display-selector-banner.png)
 
 ## Why
 
@@ -39,7 +39,7 @@ Windows-based uninstall removes the app, the *Start with Windows* entry, and **a
 ### Initial Setup
 
 > [!TIP]
-> `Run when Windows Starts` is enabled by default after install since this needs to be active in the system tray to work, but this can be turned off in the ![DS](assets/display-selector-icon-16x16.png) menu.
+> **Start with Windows** is enabled by default after install since the app needs to be running in the system tray to work, but this can be turned off from the ![DS](assets/display-selector-icon-16x16.png) menu.
 
 1. Run the application (if not already running)
 2. Arrange your displays + set your audio device the way you want them for a `Profile`
@@ -56,18 +56,28 @@ Outside the menu, after `Profiles` are created and hotkeys assigned:
 
 ### Additional Usage
 
-- Click a `Profile` to switch to it
+The active `Profile` is checked and named at the top of the menu (or *Custom (unsaved)* when nothing matches). Every capability below is reachable from the tray menu — hotkeys are only accelerators for switching.
+
+- **Switch profiles** — click a `Profile` in the menu, or press its hotkey.
   - ![switching-profiles](assets/user-guide/ds-switching-profiles.png)
-- Use **Manage profiles** to rename, delete, or change a `Profile`'s hotkey/audio device
-- Click `Run audio test...` to bring up the dialog
+- **Save current audio device as profile…** — create an *audio-only* `Profile` that switches just the sound device and leaves your displays untouched.
+- **Manage profiles** — a per-profile submenu to **Rename…**, **Set hotkey…** (or clear it), **Set audio device…**, reorder with **Move up** / **Move down** (this is also the menu order), or **Delete…**.
+- **Run audio test…** — brings up the audio dialog:
   - ![audio-test](assets/user-guide/ds-audio-test.png)
-  - Play a sound on the selected device
-  - Make a device default for all `Profile`(s)
-  - Switch to the selected device on a specific `Profile`
-- If you find anything that could be fixed, submit a bug report...
-  - ![submit-bug-report](assets/user-guide/ds-submit-bug-report.png)
-  - The application takes you to GitHub and pre-populates a form with debug info
-- Open the **Diagnostics** submenu for a display test (see what the app detects, then validate or re-apply), to toggle debug logging, or to open the log folder.
+  - **Play tone** on the selected device
+  - **Set as default** — make the device the system default for all apps *and* System Sounds
+  - **Assign to profile…** — attach the selected device to an existing `Profile`
+- **Start with Windows** — toggle launching the app automatically when you sign in (on by default).
+- **Help and diagnostics** submenu:
+  - **Run display test…** — see the displays the app detects, then **Validate** the layout or **Re-apply** it (re-applying is also the fix that unsticks a frozen Windows display UI)
+  - **Copy diagnostics** — copy the detected displays + audio devices to the clipboard
+  - **Open log folder**
+  - **Enable debug logging** — verbose logging to help diagnose a problem
+  - **Submit bug report…** — opens a *pre-filled* GitHub issue with debug info; your most recent log is copied to the clipboard to paste in
+    - ![submit-bug-report](assets/user-guide/ds-submit-bug-report.png)
+  - **Request a feature…** — opens a pre-filled GitHub feature request
+- **About** — shows the version, with links to the [project on GitHub](https://github.com/funkergreg/display-selector) and [display-selector.org](https://display-selector.org).
+- **Exit** — quits the app; hotkeys stop working until it's launched again.
 
 ## Build from source
 
@@ -85,11 +95,11 @@ The published app is a self-contained `win-x64` build (bundled runtime, loose fi
 
 ## Data & privacy
 
-**Everything stays on your machine.** Your `Profile`(s), config, and logs are human-readable files under `%LOCALAPPDATA%\DisplaySelector`, and the app sends nothing over the network on its own.  Logs record your settings each time a `Profile` is saved or activated, to make problems easier to diagnose. For more detail, turn on **Diagnostics ▸ Enable debug logging**.
+**Everything stays on your machine.** Your `Profile`(s), config, and logs are human-readable files under `%LOCALAPPDATA%\DisplaySelector`, and the app sends nothing over the network on its own.  Logs record your settings each time a `Profile` is saved or activated, to make problems easier to diagnose. For more detail, turn on **Help and diagnostics ▸ Enable debug logging**.
 
 The only outbound actions are ones you start yourself:
 
-- **About** and a couple of menu items open links to this project on GitHub in your browser.
+- **About** (and a couple of other menu items) open links to this project — its [GitHub repo](https://github.com/funkergreg/display-selector) and [display-selector.org](https://display-selector.org) — in your browser.
 - **Submit a bug report / feature request** opens a *pre-filled* GitHub issue. A bug report inlines your system vitals and copies your most recent log to the clipboard, with your Windows username redacted. Nothing is public until you review the issue and submit it on GitHub.
 
 ## Notes & limits
@@ -100,7 +110,7 @@ The only outbound actions are ones you start yourself:
 - Audio device switching uses an undocumented Windows API (isolated behind an interface); it's the standard approach for this and may change in future Windows builds.
 
 > [!IMPORTANT]
-> This originated as a personal-use project, [open-sourced to GitHub](https://github.com/funkergreg/display-selector). It has been built and tested on **Windows 11 Pro** only — it's kept portable behind interfaces, but other Windows versions are untested.  Software is provided as-is, with no guarantees of functionlity on your system or future updates.
+> This originated as a personal-use project, [open-sourced to GitHub](https://github.com/funkergreg/display-selector). It has been built and tested on **Windows 11 Pro** only — it's kept portable behind interfaces, but other Windows versions are untested.  Software is provided as-is, with no guarantees of functionality on your system or future updates.
 
 ## License
 
