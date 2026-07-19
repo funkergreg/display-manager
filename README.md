@@ -7,6 +7,8 @@ A lightweight **Windows 11** system-tray utility that captures your current **di
 
 ![Display-Selector](assets/display-selector-banner.png)
 
+**Website:** [display-selector.org](https://display-selector.org) — overview, screenshots, install guide, and FAQ.
+
 ## Why
 
 One PC, several setups — e.g. a multi-monitor desk, a single TV for couch gaming with a soundbar, a single desk monitor with PC speakers. Switching between them in Windows-default tooling means juggling the main display, the sound device, and powering panels on/off.  ![DS](assets/display-selector-icon-16x16.png) **Display-Selector** turns all of that into one keypress.

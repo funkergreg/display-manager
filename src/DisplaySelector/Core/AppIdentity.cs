@@ -17,4 +17,6 @@ public static class AppIdentity
     public const string MsixPackageName = "FunkerGreg.DisplaySelector";
 
     public const string ProjectUrl = "https://github.com/funkergreg/display-selector";
+
+    public const string ProjectSiteUrl = "https://display-selector.org";
 }

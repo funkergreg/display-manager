@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DisplaySelector.Core.Interop;
 
 namespace DisplaySelector.Core;
@@ -25,6 +26,29 @@ internal static class MemoryTuning
         catch
         {
             // Never let an optimization affect the app.
+        }
+    }
+
+    /// <summary>
+    /// One-line memory snapshot for the log. Separates the managed heap (a real leak grows this
+    /// monotonically) from the process working set (which sawtooths as the trim drops pages that
+    /// then fault back in) so we can tell a leak apart from mere working-set churn.
+    /// </summary>
+    public static string Snapshot()
+    {
+        try
+        {
+            using var p = Process.GetCurrentProcess();
+            var gc = GC.GetGCMemoryInfo();
+            long mb = 1024 * 1024;
+            return $"WorkingSet={p.WorkingSet64 / mb}MB Private={p.PrivateMemorySize64 / mb}MB " +
+                   $"ManagedHeap={GC.GetTotalMemory(false) / mb}MB GCHeap={gc.HeapSizeBytes / mb}MB " +
+                   $"Committed={gc.TotalCommittedBytes / mb}MB " +
+                   $"GC(g0/g1/g2)={GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}";
+        }
+        catch (Exception ex)
+        {
+            return $"(memory snapshot failed: {ex.Message})";
         }
     }
 }

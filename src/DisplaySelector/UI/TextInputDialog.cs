@@ -4,8 +4,9 @@ namespace DisplaySelector.UI;
 internal sealed class TextInputDialog : Form
 {
     private readonly TextBox _input = new() { Dock = DockStyle.Fill };
+    private readonly string _placeholder;
 
-    public TextInputDialog(string title, string prompt, string initialValue = "")
+    public TextInputDialog(string title, string prompt, string initialValue = "", string placeholder = "")
     {
         Text = title;
         Icon = AppIcon.Window;
@@ -15,8 +16,13 @@ internal sealed class TextInputDialog : Form
         MaximizeBox = false;
         ClientSize = new Size(360, 120);
 
+        _placeholder = placeholder;
+
         var label = new Label { Text = prompt, Dock = DockStyle.Top, Height = 24 };
         _input.Text = initialValue;
+        // Grey cue text shown in the empty box (clears on typing). Leaving the box untouched and
+        // clicking OK accepts the placeholder as the value — the mouse-only "just save" path.
+        _input.PlaceholderText = placeholder;
         _input.SelectAll();
 
         var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Width = 80 };
@@ -41,12 +47,24 @@ internal sealed class TextInputDialog : Form
         Controls.Add(buttons);
     }
 
-    public string Value => _input.Text.Trim();
-
-    /// <summary>Shows the dialog and returns the trimmed, non-empty value, or null if cancelled/blank.</summary>
-    public static string? Prompt(string title, string prompt, string initialValue = "")
+    /// <summary>The trimmed text, or the placeholder default when the box is left blank.</summary>
+    public string Value
     {
-        using var dialog = new TextInputDialog(title, prompt, initialValue);
+        get
+        {
+            var text = _input.Text.Trim();
+            return text.Length > 0 ? text : _placeholder;
+        }
+    }
+
+    /// <summary>
+    /// Shows the dialog and returns the entered value. A blank box falls back to
+    /// <paramref name="placeholder"/> (so a mouse-only OK accepts the suggested name); returns
+    /// null only when cancelled or when the result is still empty (no placeholder given).
+    /// </summary>
+    public static string? Prompt(string title, string prompt, string initialValue = "", string placeholder = "")
+    {
+        using var dialog = new TextInputDialog(title, prompt, initialValue, placeholder);
         return dialog.ShowDialog() == DialogResult.OK && dialog.Value.Length > 0 ? dialog.Value : null;
     }
 }

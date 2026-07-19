@@ -6,6 +6,11 @@ publish/
 # Installer output
 installer/Output/
 
+# Code-signing certs / keys (never commit — self-signed test certs and any real PFX)
+*.pfx
+*.p12
+*.snk
+
 # IDE
 .vs/
 *.user
@@ -18,3 +23,4 @@ desktop.ini
 # Developer Scratchpad
 **/TODO.md
 **/visual-review.png
+*.DMP

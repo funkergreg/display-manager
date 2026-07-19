@@ -105,7 +105,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trimTimer.Tick += (_, _) =>
         {
             _trimTimer.Stop();
-            MemoryTuning.TrimWorkingSet();
+            // Debug-only before/after pair: reveals whether the trim is reclaiming a real drop or
+            // just churning the working set (pages faulting straight back in). Snapshot() is cheap
+            // but skip it entirely unless Debug logging is on.
+            if (_log.Level == LogLevel.Debug)
+            {
+                _log.Debug($"Memory before trim: {MemoryTuning.Snapshot()}");
+                MemoryTuning.TrimWorkingSet();
+                _log.Debug($"Memory after trim:  {MemoryTuning.Snapshot()}");
+            }
+            else
+            {
+                MemoryTuning.TrimWorkingSet();
+            }
         };
 
         RegisterAllHotkeys();
@@ -271,6 +283,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         openLogs.Click += (_, _) => OpenLogFolder();
         diagnostics.DropDownItems.Add(openLogs);
 
+        var memorySnapshot = new ToolStripMenuItem("Log memory snapshot");
+        memorySnapshot.Click += (_, _) => LogMemorySnapshot();
+        diagnostics.DropDownItems.Add(memorySnapshot);
+
         var debugToggle = new ToolStripMenuItem("Enable debug logging")
         {
             Checked = _config.DebugLogging,
@@ -313,9 +329,29 @@ internal sealed class TrayApplicationContext : ApplicationContext
         TrimWorkingSetSoon();
     }
 
+    // Lowest-numbered "profile-N" not already in use, so the suggested name iterates automatically.
+    private string NextDefaultProfileName()
+    {
+        var existing = new HashSet<string>(
+            _document.Profiles.Select(p => p.Name),
+            StringComparer.OrdinalIgnoreCase);
+        for (var n = 1; ; n++)
+        {
+            var candidate = $"profile-{n}";
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
     private void SaveCurrentAsProfile()
     {
-        var name = TextInputDialog.Prompt("Save profile", "Name for this profile:");
+        // Prefill the default as pre-selected text (visible + first keystroke replaces it); the
+        // placeholder keeps the default as the fallback if the box is cleared before OK.
+        var defaultName = NextDefaultProfileName();
+        var name = TextInputDialog.Prompt(
+            "Save profile", "Name for this profile:", initialValue: defaultName, placeholder: defaultName);
         if (name is null)
         {
             return;
@@ -363,9 +399,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
+        var defaultName = NextDefaultProfileName();
         var name = TextInputDialog.Prompt(
             "Save audio profile",
-            $"Name for this audio-only profile (device: {device.FriendlyName}):");
+            $"Name for this audio-only profile (device: {device.FriendlyName}):",
+            initialValue: defaultName,
+            placeholder: defaultName);
         if (name is null)
         {
             return;
@@ -706,6 +745,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
         ShowBalloon($"Debug logging {(enabled ? "enabled" : "disabled")}.", ToolTipIcon.Info);
     }
 
+    // Logs a memory snapshot at Info so it lands in the log without enabling debug — a quick way to
+    // capture the footprint at a moment of interest (e.g. right after Task Manager shows a spike).
+    private void LogMemorySnapshot()
+    {
+        var snapshot = MemoryTuning.Snapshot();
+        _log.Info($"Memory snapshot (on demand): {snapshot}");
+        ShowBalloon($"Logged memory snapshot.{Environment.NewLine}{snapshot}", ToolTipIcon.Info);
+    }
+
     private void RunAudioTest()
     {
         _log.Info("Opening audio test dialog.");
@@ -800,11 +848,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void ShowAbout()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?";
-        _notifications.ShowWithLink(
+        // AssemblyVersion is always 4-part (1.1.0.0); show the 3-part product version (1.1.0).
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+        _notifications.ShowWithLinks(
             $"Version {version} — switch display + audio profiles with a hotkey.",
-            "View on GitHub",
-            AppIdentity.ProjectUrl);
+            new[]
+            {
+                ("View on GitHub", AppIdentity.ProjectUrl),
+                ("Website", AppIdentity.ProjectSiteUrl),
+            });
     }
 
     private void OnSurfaceRequested()

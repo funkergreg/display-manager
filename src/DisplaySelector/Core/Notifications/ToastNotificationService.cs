@@ -34,13 +34,21 @@ public sealed class ToastNotificationService : INotificationService
             level);
 
     public void ShowWithLink(string message, string linkLabel, string url, NotificationLevel level = NotificationLevel.Info) =>
+        ShowWithLinks(message, new[] { (linkLabel, url) }, level);
+
+    public void ShowWithLinks(string message, IReadOnlyList<(string Label, string Url)> links, NotificationLevel level = NotificationLevel.Info) =>
         TryToastOrFallback(
             // Distinct tag so it isn't replaced by routine status toasts before it can be clicked.
             // Protocol activation opens the URL in the default browser — no app-side activation handler needed.
-            () => ShowToast(AboutTag, builder => builder
-                .AddText(message)
-                .AddButton(linkLabel, ToastActivationType.Protocol, url)),
-            $"{message}  {url}",
+            () => ShowToast(AboutTag, builder =>
+            {
+                builder.AddText(message);
+                foreach (var (label, url) in links)
+                {
+                    builder.AddButton(label, ToastActivationType.Protocol, url);
+                }
+            }),
+            $"{message}  {string.Join("  ", links.Select(l => l.Url))}",
             level);
 
     private void TryToastOrFallback(Action showToast, string fallbackMessage, NotificationLevel level)

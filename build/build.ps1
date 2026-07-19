@@ -8,11 +8,36 @@
     Also run the Category=Integration tests (real Windows APIs; needs a desktop session).
 .PARAMETER SkipTests
     Skip all tests and go straight to publish + package.
+.PARAMETER Sign
+    Authenticode-sign the published app exe and the installer with signtool. Requires a certificate,
+    supplied either as a PFX (-CertPath/-CertPassword) or by store thumbprint (-CertThumbprint), or
+    via the DS_SIGN_CERT_PATH / DS_SIGN_CERT_PASSWORD / DS_SIGN_CERT_THUMBPRINT env vars. Unsigned
+    builds work exactly as before when this switch is omitted.
+
+    To prove the pipeline with a throwaway self-signed cert, run build/new-selfsigned-cert.ps1 first,
+    then pass -Sign with the thumbprint it prints. A real (CA or Azure Trusted Signing) certificate
+    later is a drop-in: same switch, different cert source.
+.PARAMETER CertPath
+    Path to a PFX code-signing certificate. Defaults to $env:DS_SIGN_CERT_PATH.
+.PARAMETER CertPassword
+    Password for the PFX. Defaults to $env:DS_SIGN_CERT_PASSWORD.
+.PARAMETER CertThumbprint
+    SHA1 thumbprint of a code-signing cert already in a certificate store (takes precedence over
+    -CertPath). Defaults to $env:DS_SIGN_CERT_THUMBPRINT.
+.PARAMETER TimestampUrl
+    RFC 3161 timestamp server. Defaults to DigiCert's.
 #>
 [CmdletBinding()]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', 'CertPassword',
+    Justification = 'signtool consumes the PFX password as a plain string on the command line; a SecureString would be converted straight back.')]
 param(
     [switch]$IncludeIntegration,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$Sign,
+    [string]$CertPath = $env:DS_SIGN_CERT_PATH,
+    [string]$CertPassword = $env:DS_SIGN_CERT_PASSWORD,
+    [string]$CertThumbprint = $env:DS_SIGN_CERT_THUMBPRINT,
+    [string]$TimestampUrl = 'http://timestamp.digicert.com'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +64,62 @@ function Invoke-Step {
     }
 }
 
+# Locate signtool: prefer the newest Windows SDK bin, then fall back to PATH.
+function Get-SignTool {
+    $roots = @(${env:ProgramFiles(x86)}, $env:ProgramFiles) | Where-Object { $_ }
+    $tool = $roots |
+        ForEach-Object { Get-ChildItem -Path (Join-Path $_ 'Windows Kits\10\bin\*\x64\signtool.exe') -ErrorAction SilentlyContinue } |
+        Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+    if (-not $tool) {
+        $cmd = Get-Command signtool -ErrorAction SilentlyContinue
+        if ($cmd) { $tool = $cmd.Source }
+    }
+    return $tool
+}
+
+# Authenticode-sign one file with the configured certificate source. The cert source is the only
+# thing that changes between a self-signed proof and a real CA / Azure Trusted Signing cert.
+function Invoke-Sign {
+    param([string]$SignTool, [string]$File)
+
+    $signArgs = @('sign', '/fd', 'SHA256', '/tr', $TimestampUrl, '/td', 'SHA256')
+    if ($CertThumbprint) {
+        # Cert already installed in a store (e.g. CurrentUser\My) — used by the self-signed helper.
+        $signArgs += @('/sha1', $CertThumbprint)
+    }
+    elseif ($CertPath) {
+        $signArgs += @('/f', $CertPath)
+        if ($CertPassword) { $signArgs += @('/p', $CertPassword) }
+    }
+    else {
+        throw 'Signing requested (-Sign) but no certificate given. Provide -CertThumbprint or -CertPath (or the DS_SIGN_* env vars).'
+    }
+    $signArgs += $File
+
+    & $SignTool @signArgs
+    if ($LASTEXITCODE -ne 0) { throw "signtool failed for $File (exit $LASTEXITCODE)." }
+
+    # Verify with the default authenticode policy. A self-signed cert only verifies if it (or its
+    # root) is trusted on this machine — so treat a verify failure as a warning, not a hard stop.
+    & $SignTool verify /pa $File
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Signature applied but not trusted by /pa verify for $File (expected for a self-signed cert not in a trusted root)."
+    }
+    # The verify above is advisory. Reset so its (expected) non-zero exit for a self-signed cert does
+    # not leak out as build.ps1's overall exit code and falsely flag the build as failed.
+    $global:LASTEXITCODE = 0
+}
+
+# Resolve signtool up front so a misconfigured -Sign fails before we spend time on tests/publish.
+$signtool = $null
+if ($Sign) {
+    $signtool = Get-SignTool
+    if (-not $signtool) {
+        throw 'Signing requested (-Sign) but signtool.exe was not found. Install the Windows SDK signing tools, or drop -Sign.'
+    }
+    Write-Host "==> Signing enabled (signtool: $signtool)" -ForegroundColor Cyan
+}
+
 if (-not $SkipTests) {
     Invoke-Step 'Unit tests' {
         dotnet test $tests -c Release --filter 'Category!=Integration'
@@ -59,6 +140,14 @@ Invoke-Step 'Publish' {
         -p:PublishSingleFile=true `
         -p:EnableCompressionInSingleFile=true `
         -o $publishDir
+}
+
+# Sign the app exe before packaging so the installer ships a signed binary. Not wrapped in
+# Invoke-Step: Invoke-Sign throws on real failure itself, and its last call (verify) can return
+# non-zero for a self-signed cert without meaning the build failed.
+if ($Sign) {
+    Write-Host '==> Sign app' -ForegroundColor Cyan
+    Invoke-Sign -SignTool $signtool -File (Join-Path $publishDir 'DisplaySelector.exe')
 }
 
 # Inno Setup is optional locally; warn rather than fail if the compiler is absent.
@@ -84,6 +173,10 @@ if ($iscc) {
     }
     $installer = Join-Path $root 'installer/Output/DisplaySelectorSetup.exe'
     if (Test-Path $installer) {
+        if ($Sign) {
+            Write-Host '==> Sign installer' -ForegroundColor Cyan
+            Invoke-Sign -SignTool $signtool -File $installer
+        }
         Write-Host "Installer: $installer" -ForegroundColor Green
     }
 }
