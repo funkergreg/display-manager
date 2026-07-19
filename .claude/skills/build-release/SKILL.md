@@ -26,10 +26,17 @@ Produce a release build + installer for Display-Selector. Prefer the `build/buil
    - **Confirm first.** A release is public and hard to fully reverse — get the developer's explicit go-ahead before running the command, and surface the exact tag + asset you're about to publish.
    - **Pre-checks:** working tree is clean (`git status`) and the local branch is pushed/up to date with the remote — the release tag must point at a commit that exists on the remote. The developer commits + pushes the source; the release tag is the only thing this skill pushes.
    - **Version:** derive from the app `.csproj` `<Version>` (the single source of truth — same value `build.ps1` stamps into the installer). Tag is `v{version}` (e.g. `v1.0.0`).
-   - **Notes content:** summarize the changes since the last release, then an `**Install:**` line, and always end with a website footer so every release links back to the site (SEO/discovery):
+   - **Notes content:** in order — (1) a summary of the changes since the last release, (2) an `## Install` section, and (3) a website footer so every release links back to the site (SEO/discovery). Use this exact Install section and footer:
      ```
+     ## Install
+     Download `DisplaySelectorSetup.exe` below and run it - Windows 11 only.
+
+     > [!IMPORTANT]
+     > The app is unsigned, so Windows SmartScreen may warn: choose **More info → Run anyway**.
+
      **Website:** https://display-selector.org — overview, screenshots, and FAQ.
      ```
+     Keep the SmartScreen `> [!IMPORTANT]` note **until the app is code-signed** — remove it once signing lands.
    - **Create the release** with the GitHub CLI, attaching the freshly-built installer:
      ```pwsh
      $v = ([xml](Get-Content src/DisplaySelector/DisplaySelector.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
