@@ -2,9 +2,6 @@
 
 ![DS](assets/display-selector-icon-16x16.png) **Display-Selector** is a lightweight **Windows 11** system-tray utility that captures your current **display layout + audio device** as a named `Profile` and binds it to a **global hotkey** — switching displays, sound, or both with one keypress.
 
-> [!TIP]
-> Yes, **sound** can be switched independently of any **display** `Profile`!
-
 **Website:** [display-selector.org](https://display-selector.org) — overview, screenshots, install guide, and FAQ.
 
 ![Display-Selector](assets/display-selector-banner.png)
@@ -19,12 +16,15 @@
 - **Focus mode** — leave a panel out of a `Profile` to let it drop to low power, e.g. switch from a multi-monitor to single-monitor focus.
 - **Lives in the system tray** — optionally starts with Windows; the active `Profile` shows in the menu, and every action is reachable via the system tray menu.
 
+> [!TIP]
+> **Sound** can be switched independently of **display**!
+
 ## Install & Uninstall
 
 Download the installer `DisplaySelectorSetup.exe` from [Releases](https://github.com/funkergreg/display-selector/releases) and run it. It's a **per-user** install (no admin needed).
 
-> [!NOTE]
-> The app is unsigned, so Windows SmartScreen may warn: choose **More info → Run anyway**.
+> [!IMPORTANT]
+> The app is unsigned, so when Windows SmartScreen warns, choose **More info → Run anyway**.
 
 To uninstall: **Settings ▸ Apps ▸ Installed apps ▸ Display-Selector ▸ Uninstall**.
 
@@ -34,8 +34,8 @@ Windows-based uninstall removes the app, the *Start with Windows* entry, and **a
 
 ### Initial Setup
 
-> [!TIP]
-> **Start with Windows** is enabled by default after install since the app needs to be running in the system tray to work, but this can be turned off from the ![DS](assets/display-selector-icon-16x16.png) menu.
+> [!NOTE]
+> **Start with Windows** is enabled by default on install since the app needs to be running in the system tray to work, but this can be turned off from the ![DS](assets/display-selector-icon-16x16.png) menu.
 
 1. Run the application (if not already running)
 2. Arrange your displays + set your audio device the way you want them for a `Profile`
@@ -43,6 +43,7 @@ Windows-based uninstall removes the app, the *Start with Windows* entry, and **a
     - ![system-tray](assets/user-guide/ds-system-tray.png)
 4. **Save current settings as new profile…** → name the `Profile`. It auto-assigns the next free F-key (F9–F12) for the first four.
     - ![new-profile-and-dialog](assets/user-guide/ds-new-profile-and-dialog.png)
+5. Repeat steps 2-4 for other profiles, as necesessary
 
 ### Hotkeys
 
@@ -133,4 +134,4 @@ If ![DS](assets/display-selector-icon-16x16.png) **Display-Selector** is useful 
 
 - <https://buymeacoffee.com/funkergreg>
 
-<img src="assets/bmc_qr.png" width="30%">
+<img src="assets/bmc_qr.png" width="20%">
